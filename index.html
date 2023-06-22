@@ -1,1 +1,112 @@
-"Hello"
+<!-- usage copy in the dir of your scripts -->
+<!-- usage dir/index.html : generate lauch list links  -->
+<!--    or dir/index.html?script (no.js)  -->
+<!--    or dir/?script (no.js)  -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>EasyWebGL</title>
+	<meta charset="utf-8">
+	<style>
+	* {box-sizing: border-box;}
+	body 
+	{
+		background-color: black;
+		color:white;
+		font-size: larger;
+		line-height: 150%;
+	}
+
+	/* .column
+	{
+		float: left;
+		flex: 12%;
+		padding: 20px;
+	} */
+
+	.row:after {
+		content: "";
+		clear: both;
+		/* width:90% */
+	}
+
+	h1,header
+	{
+		color:white;
+		text-align: center;
+	}
+	a,h1 {color:white;}
+	a:focus {color:yellow;}
+</style>
+</head>
+<body id="body_list_js">
+	<div class="header">
+		<h1>Demos</h1>
+		<p id="device_type"> xxx detected</p>
+	 </div>
+	<div id ="row" class="row">
+		<!-- <div class="column" id="list1_js"></div>
+		<div class="column" id="list2_js"></div> -->
+
+	</div>
+</body>
+
+<script>
+const nb_columns = 4;
+const sorting = true;
+// Mettez ici la liste de vos scripts:
+const liste_js = ["augmented_terrain"]; 	
+
+let launcher = "";
+if ("ontouchstart" in window)
+{
+	launcher = "launch_tactile.html?";
+	msg = "Tactile device detected";
+}
+else
+{
+	launcher = "launch.html?";
+	msg = "Desktop device detected";
+}
+
+let fjs = window.location.href.split('?');
+if (fjs.length>1)
+{
+	window.location.href = launcher+fjs.slice(1);
+}
+else
+{
+	let dev = document.getElementById("device_type");
+	dev.innerText = msg;
+	let ro = document.getElementById("row");
+	let cols=[];
+	let widthpercent = Math.floor(100/nb_columns);
+	for (let i =0;i<nb_columns;++i)
+	{
+		let c =document.createElement("div");
+		c.class = "column";
+		c.style.float = "left";
+		c.style.padding = "20px";
+		c.style.flex = "33%";
+		ro.appendChild(c);
+		cols.push(c);
+	}
+
+	let half = Math.ceil(liste_js.length/2)
+	
+	let slistjs = sorting ? liste_js.sort() : liste_js;
+	for (let i=0; i<slistjs.length;++i)
+	{
+		const d=slistjs[i];
+		let anch = document.createElement("A");
+		anch.href =launcher+d;
+		anch.innerText = d
+		let co = cols[i%nb_columns];
+		co.appendChild(anch);
+		co.appendChild(document.createElement("BR"))
+	}
+}
+
+</script>
+	
+</html>

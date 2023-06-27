@@ -142,8 +142,6 @@ function recompute_and_update()
 //--------------------------------------------------------------------------------------------------------
 function init_wgl() 
 {
-	init_time = Date.now();
-
 	// creating 3D mesh
 	object = Mesh.Grid(SZ_MESH_TERRAIN).renderer(0, 1, 2, 3); 
 
@@ -164,13 +162,13 @@ function init_wgl()
 		
 		UserInterface.use_field_set('V', "Amplitude");
 			// UserInterface.add_br();
-			UserInterface.add_label("a ∈ [0, 0.1]"); // légende
+			UserInterface.add_label("a ∈ [0, 0.1]"); // caption
 			amplitude_facteur = UserInterface.add_text_input('0.04', recompute_and_update);
 		UserInterface.end_use();
 		
 		UserInterface.use_field_set('V', "Frequency");
 			// UserInterface.add_br();
-			UserInterface.add_label("f ∈ [0, 60]"); // légende
+			UserInterface.add_label("f ∈ [0, 60]"); // caption
 			frequence_facteur = UserInterface.add_text_input('24', recompute_and_update);
 		UserInterface.end_use();
 
@@ -182,13 +180,13 @@ function init_wgl()
 		
 		UserInterface.use_field_set('V', "Amplitude factor");
 			// UserInterface.add_br();
-			UserInterface.add_label("a ∈ [0, 1]"); // légende
+			UserInterface.add_label("a ∈ [0, 1]"); // caption
 			ravine2_rapport_amplitude = UserInterface.add_text_input('0.2', recompute_and_update);
 		UserInterface.end_use();
 
 		UserInterface.use_field_set('V', "Frequency factor");
 			// UserInterface.add_br();
-			UserInterface.add_label("f ∈ [1, 10]"); // légende
+			UserInterface.add_label("f ∈ [1, 10]"); // caption
 			ravine2_rapport_frequence = UserInterface.add_text_input('3', recompute_and_update);
 		UserInterface.end_use();
 
@@ -200,14 +198,14 @@ function init_wgl()
 		
 		UserInterface.use_field_set('V', "Vanishing threshold");
 			// UserInterface.add_br();
-			UserInterface.add_label("ε ∈ [0, 1]"); // légende
+			UserInterface.add_label("ε ∈ [0, 1]"); // caption
 			profil_angulaire_mask_down = UserInterface.add_text_input('0.3', recompute_and_update);
 			profil_angulaire_mask_top = 1.;//parseFloat(profil_angulaire_mask_down.value) + 0.5;
 		UserInterface.end_use();
 
 		UserInterface.use_field_set('V', "Amplitude factor");
 			// UserInterface.add_br();
-			UserInterface.add_label("a ∈ [0, 1]"); // légende
+			UserInterface.add_label("a ∈ [0, 1]"); // caption
 			profil_angulaire_modulation_amplitude = UserInterface.add_text_input('0.4', recompute_and_update);
 		UserInterface.end_use();
 	UserInterface.end_use();
@@ -215,6 +213,8 @@ function init_wgl()
 	UserInterface.end();
 
 
+	// performance measure
+	let t0 = performance.now();
 
 	// FBO1 out: 0 = grad_rav 1&2 / 1 = fBm / 2 = displacement
 	let tex_fbo1_grad_rav = Texture2d();
@@ -272,13 +272,14 @@ function init_wgl()
 		});
 
 
+	// performance measure
+	let t1 = performance.now();
+	ewgl.console.info_nl("Initialisation computed in "+(t1-t0)+" in ms");
+	
 	// camera
 	ewgl.scene_camera.set_scene_radius(1.5);
 	ewgl.scene_camera.look(Vec3(0, -2, 1), Vec3(0, 0, 0), Vec3(0, 0, 1)); // eye, at, up
 	last_time = ewgl.current_time;
-
-	compute_time = Date.now() - init_time;
-	console.log("initialisation time: ", compute_time, " ms");
 }
 
 function draw_wgl()
@@ -290,7 +291,8 @@ function draw_wgl()
 
 	if (need_recompute)
 	{
-		init_time = Date.now();
+		// performance measure
+		let t0 = performance.now();
 
 		// PASS 1
 		// FBO1 out: 0 = grad_rav 1&2 / 1 = fBm / 2 = displacement
@@ -361,8 +363,9 @@ function draw_wgl()
 		need_recompute = false;
 
 
-		compute_time = Date.now() - init_time;
-		console.log("computation time: ", compute_time, " ms");
+		// performance measure
+		let t1 = performance.now();
+		ewgl.console.info_nl("Details computed in "+(t1-t0)+" in ms");
 	}
 
 

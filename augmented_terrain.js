@@ -150,7 +150,7 @@ function init_wgl()
 	UserInterface.begin(false, true);
 
 	UserInterface.use_field_set('V', "Render");
-		UserInterface.add_slider('auto rotation', 0, 100, 0, x=>{rot_speed=0.1*x; ewgl.continuous_update=(x>0);});
+		UserInterface.add_slider('Auto rotation', 0, 100, 0, x=>{rot_speed=0.1*x; ewgl.continuous_update=(x>0);});
 	UserInterface.end_use();
 
 
@@ -199,7 +199,7 @@ function init_wgl()
 		UserInterface.use_field_set('V', "Vanishing threshold");
 			// UserInterface.add_br();
 			UserInterface.add_label("ε ∈ [0, 1]"); // caption
-			profil_angulaire_mask_down = UserInterface.add_text_input('0.3', recompute_and_update);
+			profil_angulaire_mask_down = UserInterface.add_text_input('0.25', recompute_and_update);
 			profil_angulaire_mask_top = 1.;//parseFloat(profil_angulaire_mask_down.value) + 0.5;
 		UserInterface.end_use();
 
@@ -274,7 +274,7 @@ function init_wgl()
 
 	// performance measure
 	let t1 = performance.now();
-	ewgl.console.info_nl("Initialisation computed in "+(t1-t0)+" in ms");
+	ewgl.console.info_nl("Initialisation computed in "+(t1-t0)+" ms");
 	
 	// camera
 	ewgl.scene_camera.set_scene_radius(1.5);
@@ -365,7 +365,7 @@ function draw_wgl()
 
 		// performance measure
 		let t1 = performance.now();
-		ewgl.console.info_nl("Details computed in "+(t1-t0)+" in ms");
+		ewgl.console.info_nl("Details computed in "+(t1-t0)+" ms");
 	}
 
 

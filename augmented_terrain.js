@@ -50,8 +50,10 @@ var fbo2 = null;
 
 var need_recompute = true;
 
-var init_time;
-var compute_time;
+// var init_time;
+// var compute_time;
+
+var t0;
 
 
 function blurR(ptex_in, nbpass_blur,output_tex)
@@ -137,11 +139,85 @@ function recompute_and_update()
 	update_wgl();
 }
 
+function details_recompute()
+{
+	// PASS 1
+	// FBO1 out: 0 = grad_rav 1&2 / 1 = fBm / 2 = displacement
+	push_fbo();
+	fbo1.resize(SZ_TERRAIN,SZ_TERRAIN);
+	fbo1.bind();
+
+	gl.disable(gl.DEPTH_TEST);
+
+	gl.clearColor(0, 0, 0, 0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	prg_p1.bind();
+	
+	//	Uniforms
+	Uniforms.iBoolAugmentation = is_on_augmentation.checked;
+	Uniforms.iBoolAmplitude = is_on_map_amplitude.checked;
+
+	Uniforms.iParamFrequence = frequence_facteur.value;
+	Uniforms.iParamAmplitude = amplitude_facteur.value;
+
+	Uniforms.iProfilAngulaireFond = profil_angulaire_fond.checked / 10.;
+	Uniforms.iBoolFBM	 = is_on_fBm.checked;
+	Uniforms.iProfilAngulaireMask = [profil_angulaire_mask_down.value, profil_angulaire_mask_top];
+	Uniforms.iProfilAngulaireModulation = profil_angulaire_modulation_amplitude.value;
+
+	Uniforms.iBoolProfilRadial = is_on_profil_radial.checked;
+
+	Uniforms.iBoolRavine2 = is_on_ravine_2.checked;
+	Uniforms.iRavine2 = [ravine2_rapport_amplitude.value, ravine2_rapport_frequence.value];
+
+	Uniforms.iTerrainInput = tex_alt_HRB1.bind(0);	
+	Uniforms.iTerrainGrad = tex_gradient_terrain.bind(1);
+	Uniforms.iRiver = texture_river_LR.bind(2);
+	
+	gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+
+	// compute fBm gradient
+	fbo1.texture(1).simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
+	tex_gradient_fBm = deriv(fbo1.texture(1),tex_gradient_fBm);
+	tex_gradient_fBm.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
+
+
+
+
+	// PASS 2 (pre_final)
+	// FBO2 out: 0 = Displacement + Normal (R:displace GBA: Normal)
+	fbo2.resize(SZ_TERRAIN,SZ_TERRAIN);
+	fbo2.bind();
+
+	prg_ppf.bind();
+
+	//	Uniforms
+	Uniforms.iDispla = fbo1.texture(2).bind(1);
+	Uniforms.iTex_grad_terrain = tex_gradient_terrain.bind(2);
+	Uniforms.iTex_grad_fBm = tex_gradient_fBm.bind(3);
+	Uniforms.iTex_grad_rav = fbo1.texture(0).bind(4);
+
+	gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+	
+	pop_fbo();
+	unbind_texture2d();
+	unbind_shader();
+
+	fbo1.resize(0,0);
+	need_recompute = false;
+}
+
 //--------------------------------------------------------------------------------------------------------
 // Initialize graphics objects and GL states
 //--------------------------------------------------------------------------------------------------------
 function init_wgl() 
 {
+	// performance measure
+	t0 = performance.now();
+
 	// creating 3D mesh
 	object = Mesh.Grid(SZ_MESH_TERRAIN).renderer(0, 1, 2, 3); 
 
@@ -213,8 +289,7 @@ function init_wgl()
 	UserInterface.end();
 
 
-	// performance measure
-	let t0 = performance.now();
+
 
 	// FBO1 out: 0 = grad_rav 1&2 / 1 = fBm / 2 = displacement
 	let tex_fbo1_grad_rav = Texture2d();
@@ -272,15 +347,22 @@ function init_wgl()
 		});
 
 
-	// performance measure
-	let t1 = performance.now();
-	ewgl.console.info_nl("Initialisation computed in "+(t1-t0)+" ms");
-	
+
 	// camera
 	ewgl.scene_camera.set_scene_radius(1.5);
 	ewgl.scene_camera.look(Vec3(0, -2, 1), Vec3(0, 0, 0), Vec3(0, 0, 1)); // eye, at, up
 	last_time = ewgl.current_time;
+
+
+	// performance measure
+	ewgl.console.info_nl("Initialisation computed in "+(performance.now()-t0)+" ms");
 }
+
+
+
+
+
+
 
 function draw_wgl()
 {
@@ -289,83 +371,16 @@ function draw_wgl()
 	last_time = ewgl.current_time;
 	alphaZ += rot_speed*dt;
 
+
 	if (need_recompute)
 	{
 		// performance measure
-		let t0 = performance.now();
+		t0 = performance.now();
 
-		// PASS 1
-		// FBO1 out: 0 = grad_rav 1&2 / 1 = fBm / 2 = displacement
-		push_fbo();
-		fbo1.resize(SZ_TERRAIN,SZ_TERRAIN);
-		fbo1.bind();
-
-		gl.disable(gl.DEPTH_TEST);
-
-		gl.clearColor(0, 0, 0, 0);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-
-		prg_p1.bind();
-		
-		//	Uniforms
-		Uniforms.iBoolAugmentation = is_on_augmentation.checked;
-		Uniforms.iBoolAmplitude = is_on_map_amplitude.checked;
-
-		Uniforms.iParamFrequence = frequence_facteur.value;
-		Uniforms.iParamAmplitude = amplitude_facteur.value;
-
-		Uniforms.iProfilAngulaireFond = profil_angulaire_fond.checked / 10.;
-		Uniforms.iBoolFBM	 = is_on_fBm.checked;
-		Uniforms.iProfilAngulaireMask = [profil_angulaire_mask_down.value, profil_angulaire_mask_top];
-		Uniforms.iProfilAngulaireModulation = profil_angulaire_modulation_amplitude.value;
-
-		Uniforms.iBoolProfilRadial = is_on_profil_radial.checked;
-
-		Uniforms.iBoolRavine2 = is_on_ravine_2.checked;
-		Uniforms.iRavine2 = [ravine2_rapport_amplitude.value, ravine2_rapport_frequence.value];
-
-		Uniforms.iTerrainInput = tex_alt_HRB1.bind(0);	
-		Uniforms.iTerrainGrad = tex_gradient_terrain.bind(1);
-		Uniforms.iRiver = texture_river_LR.bind(2);
-		
-		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-
-		// compute fBm gradient
-		fbo1.texture(1).simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
-		tex_gradient_fBm = deriv(fbo1.texture(1),tex_gradient_fBm);
-		tex_gradient_fBm.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
-
-
-
-
-		// PASS 2 (pre_final)
-		// FBO2 out: 0 = Displacement + Normal (R:displace GBA: Normal)
-		fbo2.resize(SZ_TERRAIN,SZ_TERRAIN);
-		fbo2.bind();
-
-		prg_ppf.bind();
-
-		//	Uniforms
-		Uniforms.iDispla = fbo1.texture(2).bind(1);
-		Uniforms.iTex_grad_terrain = tex_gradient_terrain.bind(2);
-		Uniforms.iTex_grad_fBm = tex_gradient_fBm.bind(3);
-		Uniforms.iTex_grad_rav = fbo1.texture(0).bind(4);
-
-		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-		
-		pop_fbo();
-		unbind_texture2d();
-		unbind_shader();
-
-		fbo1.resize(0,0);
-		need_recompute = false;
-
+        details_recompute()
 
 		// performance measure
-		let t1 = performance.now();
-		ewgl.console.info_nl("Details computed in "+(t1-t0)+" ms");
+		ewgl.console.info_nl("Details computed in "+(performance.now()-t0)+" ms");
 	}
 
 
@@ -395,8 +410,12 @@ function draw_wgl()
 	unbind_shader();
 	unbind_texture2d();
 
-	
 }
+
+
+
+
+
 
 //--------------------------------------------------------------------------------------------------------
 // call window creation with your customized "init_wgl()" and "draw_wgl()" functions

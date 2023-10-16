@@ -309,7 +309,7 @@ function draw_wgl()
 		// performance measure
 		t0 = performance.now();
 
-		for(let pass=0; pass<20; pass++){
+		for(let pass=0; pass<50; pass++){
 			details_recompute()
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}

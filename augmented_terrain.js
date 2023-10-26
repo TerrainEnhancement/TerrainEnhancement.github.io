@@ -289,7 +289,7 @@ function init_wgl()
 	UserInterface.use_field_set('V', "Render");
 		UserInterface.add_slider('Auto rotation', 0, 100, 0, x=>{rot_speed=0.1*x; ewgl.continuous_update=(x>0);});
 		terrain_id = UserInterface.add_list_input(["terrain 1", "terrain 2"], 0, shader_init);
-		close_view = UserInterface.add_check_box("close-up view", 0, camera_set);
+		close_view = UserInterface.add_check_box("Close-up view", 0, camera_set);
 	UserInterface.end_use();
 
 

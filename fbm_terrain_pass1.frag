@@ -19,6 +19,8 @@ uniform float iParamAmplitude;
 
 uniform sampler2D iTerrainInput;
 uniform sampler2D iRiver;
+uniform sampler2D iTerrainOriginal;
+
 
 
 // ---- Tools -------------------------------------
@@ -95,6 +97,11 @@ void main()
     float disp_supp = 0.0;
     float tmp_fBm = 0.0;
 
+    // terrain to enhance
+    float AmplTerrain = amplitude_map(1., uv, iRiver);
+    float InputTerrain = texture(iTerrainInput, uv).x * AmplTerrain + texture(iTerrainOriginal, uv).x * (1.-AmplTerrain);
+
+
     // comput details (if display)
     if(iBoolAugmentation)
     {
@@ -109,5 +116,5 @@ void main()
     }
 
     out_fBm = tmp_fBm;       // out location = 0
-    out_displa = texture(iTerrainInput, uv).x + disp_supp;  // out location = 1
+    out_displa = InputTerrain + disp_supp;  // out location = 1
 }

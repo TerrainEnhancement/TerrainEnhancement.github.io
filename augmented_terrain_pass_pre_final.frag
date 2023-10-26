@@ -9,10 +9,10 @@ out vec4 oFragment_displ_norm;
 
 
 // UNIFORM -----------------------------
-uniform sampler2D iDispla;            // augmented terrain
-uniform sampler2D iTex_grad_terrain;  // augmented terrain gradient
-uniform sampler2D iTex_grad_fBm;      // fBm gradient
-uniform sampler2D iTex_grad_rav;      // details gradient
+uniform sampler2D iDispla;            // augmented terrain 				T = r1+r2+fbm+h
+uniform sampler2D iTex_grad_terrain;  // terrain gradient 				Delta h
+uniform sampler2D iTex_grad_fBm;      // fBm gradient 					Delta C
+uniform sampler2D iTex_grad_rav;      // details gradient 				Delta r1 et r2
 
 
 void main()

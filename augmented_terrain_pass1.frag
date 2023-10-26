@@ -31,6 +31,7 @@ uniform vec2 iRavine2;
 uniform sampler2D iTerrainInput;
 uniform sampler2D iTerrainGrad; 
 uniform sampler2D iRiver;
+uniform sampler2D iTerrainOriginal;
 
 
 // CONSTANTE -----------------------------
@@ -76,7 +77,7 @@ float fBm(vec2 uv, int numOctaves )
 
     float G = 0.5;
     float ampl = 1.;
-    float freq = 24.;
+    float freq = 48.;//24.;
 
     for( int i=0; i<numOctaves; i++ )
     {
@@ -170,7 +171,7 @@ float radial_profil(float rho)
     float c = 1.;
     if(iBoolProfilRadial)
     {
-        c = 6.;
+        c = 24.;
         return (2./_PI_)*atan(c*rho);
     }
     return c;
@@ -254,10 +255,17 @@ void main()
     float kernel_size = 1./(2.*frequence);
     int nb_kernel = int(10./kernel_size); 
 
+
+    // terrain to enhance
+    float AmplTerrain = amplitude_map(1., uv, iRiver);
+    float InputTerrain = texture(iTerrainInput, uv).x * AmplTerrain + texture(iTerrainOriginal, uv).x * (1.-AmplTerrain);
+
+
 	
     // comput details (if display)
     if(iBoolAugmentation)
     {
+
         if(iBoolAmplitude)
         {
             amplitude = amplitude_map(iParamAmplitude, uv, iRiver);
@@ -309,7 +317,7 @@ void main()
             tmp_grad_r.ba = amplitude * grad_ravine; 
 
             // profiled waves
-            ravine_n2 = amplitude*simple_transfer_map(complex_gabor);
+            ravine_n2 = amplitude * simple_transfer_map(complex_gabor);
             disp_supp += ravine_n2;
         }
     }
@@ -317,6 +325,6 @@ void main()
  
 	out_grad_r = tmp_grad_r; // out location = 0
 	out_fBm = tmp_fBm;       // out location = 1
-    out_displa = texture(iTerrainInput, uv).x + disp_supp;  // out location = 2
+    out_displa = InputTerrain + disp_supp;  // out location = 2
 
 }

@@ -4,8 +4,8 @@
 //--------------------------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------------------------
-var SZ_TERRAIN = 2048;
-var SZ_MESH_TERRAIN = 512;
+var SZ_TERRAIN = 2048;// 4096;
+var SZ_MESH_TERRAIN = 512;// 2048;
 
 
 var prg_p1 = null;
@@ -49,6 +49,16 @@ var tex_gradient_terrain =null;
 var fbo2 = null;
 
 var need_recompute = true;
+var close_view;
+
+var terrain_id;
+var height_map = ['/zoom_appalache_20km.png', '/terrain_test_HR.png'];
+var ampl_map = ['/zoom_appalache_20km_ampl_t.png', '/riverdist_LR.png'];
+var blur_strenght = [60, 5];
+var global_ampl = [0.12, 0.4];
+var global_freq = [50, 35];
+var close_view_pos = [Vec3(-0.569, 0.669, 0.069), Vec3(-0.024, -0.76, 0.34)];
+var close_view_at = [Vec3(0.049, 0.065, -0.067), Vec3(0.22, -0.048, 0.075)];
 
 // var init_time;
 // var compute_time;
@@ -56,7 +66,7 @@ var need_recompute = true;
 var t0;
 
 
-function blurR(ptex_in, nbpass_blur,output_tex)
+function blurR(ptex_in, nbpass_blur, output_tex)
 {	
 	ptex_in.simple_params(gl.CLAMP_TO_EDGE);
 	let tex_fbo2h = Texture2d();
@@ -105,8 +115,7 @@ function blurR(ptex_in, nbpass_blur,output_tex)
 	return output_tex;
 }
 
-
-function deriv(input_tex,output_tex)
+function deriv(input_tex, output_tex)
 {	
 	if (output_tex==null)
 	{
@@ -174,6 +183,7 @@ function details_recompute()
 	Uniforms.iTerrainInput = tex_alt_HRB1.bind(0);	
 	Uniforms.iTerrainGrad = tex_gradient_terrain.bind(1);
 	Uniforms.iRiver = texture_river_LR.bind(2);
+	Uniforms.iTerrainOriginal = texture_alt_HR.bind(3);	
 	
 	gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -210,6 +220,57 @@ function details_recompute()
 	need_recompute = false;
 }
 
+function shader_init()
+{
+	frequence_facteur.value = global_freq[terrain_id.value];
+	ewgl.scene_camera.look(Vec3(-2, 0, 1), Vec3(0, 0, 0), Vec3(0, 0, 1));
+	close_view.checked = false;
+
+	Promise.all([
+		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_pass1.frag', 'passaugmented_terrain_pass1compute'),
+		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_blur.frag', 'augmented_terrain_blur'),
+		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_grad.frag', 'augmented_terrain_grad'),
+		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_pass_pre_final.frag', 'augmented_terrain_pass_pre_final'),
+		ShaderProgramFromFiles('augmented_terrain_pass_final.vert', 'augmented_terrain_pass_final.frag', 'augmented_terrain_pass_final'),
+		// texture_alt_HR.load('/terrain_test_HR.png', gl.R8),
+		// texture_river_LR.load('/riverdist_LR.png', gl.R8)
+		// texture_alt_HR.load('/zoom_appalache_20km.png', gl.R8),
+		// texture_river_LR.load('/zoom_appalache_20km_ampl_t.png', gl.R8)
+		texture_alt_HR.load(height_map[terrain_id.value], gl.R8),
+		texture_river_LR.load(ampl_map[terrain_id.value], gl.R8)
+	]).then(
+		progs => {
+			[prg_p1, prg_blurR, prg_deriv, prg_ppf, prg_pf,,,] = progs;
+			push_fbo();
+			// terrain smoothed
+			tex_alt_HRB1 = blurR(texture_alt_HR, blur_strenght[terrain_id.value], tex_alt_HRB1); // blur_strenght[terrain_id.value]
+			tex_alt_HRB1.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);		
+
+			// gradient of smoothed terrain
+			tex_gradient_terrain = deriv(tex_alt_HRB1,tex_gradient_terrain);
+			tex_gradient_terrain.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
+
+			texture_alt_HR.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
+			texture_river_LR.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
+			
+			pop_fbo();    	
+			// update_wgl();
+			recompute_and_update();
+		});
+}
+
+function camera_set()
+{
+	
+	if(close_view.checked){ // automatique close view
+		ewgl.scene_camera.look(close_view_pos[terrain_id.value], close_view_at[terrain_id.value], Vec3(0, 0, 1)); // eye, at, up
+	}
+	else{ // default position
+		ewgl.scene_camera.look(Vec3(-2, 0, 1), Vec3(0, 0, 0), Vec3(0, 0, 1)); // eye, at, up
+	}
+	update_wgl();
+}
+
 //--------------------------------------------------------------------------------------------------------
 // Initialize graphics objects and GL states
 //--------------------------------------------------------------------------------------------------------
@@ -227,6 +288,8 @@ function init_wgl()
 
 	UserInterface.use_field_set('V', "Render");
 		UserInterface.add_slider('Auto rotation', 0, 100, 0, x=>{rot_speed=0.1*x; ewgl.continuous_update=(x>0);});
+		terrain_id = UserInterface.add_list_input(["terrain 1", "terrain 2"], 0, shader_init);
+		close_view = UserInterface.add_check_box("close view", 0, camera_set);
 	UserInterface.end_use();
 
 
@@ -245,7 +308,7 @@ function init_wgl()
 		UserInterface.use_field_set('V', "Frequency");
 			// UserInterface.add_br();
 			UserInterface.add_label("f ∈ [0, 60]"); // caption
-			frequence_facteur = UserInterface.add_text_input('24', recompute_and_update);
+			frequence_facteur = UserInterface.add_text_input(global_freq[terrain_id.value], recompute_and_update);
 		UserInterface.end_use();
 
 	UserInterface.end_use();
@@ -257,7 +320,7 @@ function init_wgl()
 		UserInterface.use_field_set('V', "Amplitude factor");
 			// UserInterface.add_br();
 			UserInterface.add_label("a ∈ [0, 1]"); // caption
-			ravine2_rapport_amplitude = UserInterface.add_text_input('0.2', recompute_and_update);
+			ravine2_rapport_amplitude = UserInterface.add_text_input('0.3', recompute_and_update);
 		UserInterface.end_use();
 
 		UserInterface.use_field_set('V', "Frequency factor");
@@ -282,7 +345,7 @@ function init_wgl()
 		UserInterface.use_field_set('V', "Amplitude factor");
 			// UserInterface.add_br();
 			UserInterface.add_label("a ∈ [0, 1]"); // caption
-			profil_angulaire_modulation_amplitude = UserInterface.add_text_input('0.4', recompute_and_update);
+			profil_angulaire_modulation_amplitude = UserInterface.add_text_input('0.3', recompute_and_update);
 		UserInterface.end_use();
 	UserInterface.end_use();
 
@@ -320,37 +383,14 @@ function init_wgl()
 	pause_wgl();
 
 	// Create and initialize a shader program
-	Promise.all([
-		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_pass1.frag', 'passaugmented_terrain_pass1compute'),
-		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_blur.frag', 'augmented_terrain_blur'),
-		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_grad.frag', 'augmented_terrain_grad'),
-		ShaderProgramFromFiles('augmented_terrain_pass1.vert', 'augmented_terrain_pass_pre_final.frag', 'augmented_terrain_pass_pre_final'),
-		ShaderProgramFromFiles('augmented_terrain_pass_final.vert', 'augmented_terrain_pass_final.frag', 'augmented_terrain_pass_final'),
-		texture_alt_HR.load('/terrain_test_HR.png', gl.R8),
-		texture_river_LR.load('/riverdist_LR.png', gl.R8)
-	]).then(
-		progs => {
-			[prg_p1, prg_blurR, prg_deriv, prg_ppf, prg_pf,,,] = progs;
-			push_fbo();
-			// terrain smoothed x5
-			tex_alt_HRB1 = blurR(texture_alt_HR,5,tex_alt_HRB1);
-			tex_alt_HRB1.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);		
-
-			// gradient of smoothed terrain
-			tex_gradient_terrain = deriv(tex_alt_HRB1,tex_gradient_terrain);
-			tex_gradient_terrain.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
-			texture_alt_HR.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
-			texture_river_LR.simple_params(gl.LINEAR, gl.MIRRORED_REPEAT);
-			
-			pop_fbo();    	
-			update_wgl();
-		});
+	shader_init()
 
 
 
 	// camera
 	ewgl.scene_camera.set_scene_radius(1.5);
-	ewgl.scene_camera.look(Vec3(0, -2, 1), Vec3(0, 0, 0), Vec3(0, 0, 1)); // eye, at, up
+	ewgl.scene_camera.look(Vec3(-2, 0, 1), Vec3(0, 0, 0), Vec3(0, 0, 1)); // eye, at, up
+	
 	last_time = ewgl.current_time;
 
 
@@ -371,7 +411,11 @@ function draw_wgl()
 	last_time = ewgl.current_time;
 	alphaZ += rot_speed*dt;
 
+	
 
+	
+
+	// re-compute procedural details
 	if (need_recompute)
 	{
 		// performance measure
@@ -387,7 +431,7 @@ function draw_wgl()
 
 	// PASS RENDU FINAL
 	gl.enable(gl.DEPTH_TEST);
-	gl.clearColor(0.4, 0.5, 0.6, 0);
+	gl.clearColor(0.58, 0.76, 0.98, 1);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
@@ -395,6 +439,8 @@ function draw_wgl()
 	const proj_matrix = ewgl.scene_camera.get_projection_matrix();
 	const view_matrix = ewgl.scene_camera.get_view_matrix();
 	const vm = view_matrix.mult(Matrix.rotateZ(alphaZ).mult(Matrix.scale(1., 1., 1.)));
+	
+	// console.log(ewgl.scene_camera.get_look_info());
 
 	prg_pf.bind();
 
@@ -404,6 +450,7 @@ function draw_wgl()
 	Uniforms.projectionMatrix = proj_matrix;
 
 	Uniforms.iDN = fbo2.texture(0).bind(1);
+	Uniforms.iGobalAmpl = global_ampl[terrain_id.value];
 
 	object.draw(gl.TRIANGLES);
 	

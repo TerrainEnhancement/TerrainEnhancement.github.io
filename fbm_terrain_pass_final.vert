@@ -17,12 +17,13 @@ uniform mat4 viewMatrix;
 uniform mat3 normalMatrix;
 uniform mat4 projectionMatrix;
 uniform sampler2D iDN;
+uniform float iGobalAmpl;
 
 // MAIN PROGRAM -----------------------------
 void main()
 {
 	uv = texCoord_in;
-	vec3 displacement = position_in + texture(iDN, uv).x * normal_in;
+	vec3 displacement = position_in + iGobalAmpl*texture(iDN, uv).x * normal_in;
 	vec4 P4 = viewMatrix * vec4(displacement,1);
 	PV = P4.xyz;
 	NO = normalMatrix*normal_in;

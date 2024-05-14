@@ -2663,11 +2663,15 @@ let ShaderProgram_ops=
 	compile: function(vsrc_name, fsrvc_name)
 	{
 		let attached = gl.getAttachedShaders(this.prg);
-		attached.forEach( (s) =>
-		{
-			gl.detachShader(this.prg, s);
-			gl.deleteShader(s);
-		});
+		
+		if (attached != null){
+			attached.forEach( (s) =>
+			{
+				gl.detachShader(this.prg, s);
+				gl.deleteShader(s);
+			});
+		}
+		
 
 		if (this.f_src === undefined)
 		{
